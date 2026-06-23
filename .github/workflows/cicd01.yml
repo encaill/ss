@@ -1,4 +1,4 @@
-name: Github Action 테스트 1번.
+name: Deploy To EC2
 
 on:
   push:
@@ -6,34 +6,19 @@ on:
       - main
 
 jobs:
-  My-Deploy-Job:
+  deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Hello World 출력
-        run: echo "Hello World"
-
-      - name: 여러개 명령어 추가하기
-        run: |
-          echo "Good"
-          echo "Morning"
-      - name: Github Actions 내장 변수 사용.
-        run: |
-          echo $GITHUB_SHA
-          echo $GITHUB_REPOSITORY
-          echo "3. 워크플로우 실행한놈 : $GITHUB_ACTOR"
-          echo "4. 현재 실행중인 브랜치 : $GITHUB_REF_NAME"
-          echo "5. 이 워크플로우 실행 번호 : $GITHUB_RUN_NUMBER"
-          echo "6. 워크플로우 발생 이벤트 : $GITHUB_EVENT_NAME"
-          echo "7. 현재 액션이 돌아가는 os : $GITHUB_OS"
-          echo "8. 가상환경 기본작업 경로 : $GITHUB_WORKSPACE"
-
-      - name: Secret 변수 사용, 넘이 보면 안됨.
-        run: |
-          echo ${{secrets.MY_AGE}}
-          echo ${{secrets.MY_PAY}}
-
-      - name: 넘이 봐도 되는 변수
-        run: |
-          echo ${{vars.MY_GRADE}}
-          echo ${{vars.MY_HEIGHT}}
+      - name: SSH로 EC2에 접속하기
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{secrets.EC2_HOST}}
+          username: ${{secrets.EC2_USERNAME}}
+          key: ${{secrets.EC2_PRIVATE_KEY}}
+          script_stop:    #만약에 아래 스크립트가 오류나면 중지.
+          script: |
+            cd /home/ubuntu/ss
+            git pull origin main
+            .gradlew clean build -x test
+            sudo fuser -k -n tcp 80 || true
+            sudo nohup java -jar build/libs/*SNAPSHOT.jar > ./output/log 2>&1 &
